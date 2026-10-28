@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Biblioteca IAM</title>
+<meta name="theme-color" content="#45338C">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='5' y='4' width='6' height='24' rx='1' fill='%2345338C'/%3E%3Crect x='13' y='7' width='6' height='21' rx='1' fill='%23745FC7'/%3E%3Crect x='21' y='5' width='6' height='23' rx='1' transform='rotate(8 24 16)' fill='%2345338C'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Literata:opsz,wght@7..72,500;7..72,600&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<!-- entrada -->
+<div class="login" id="login" hidden>
+  <form id="login-form" novalidate>
+    <div>
+      <p class="eyebrow">Instituto Alberto Magno</p>
+      <h1>Biblioteca IAM</h1>
+    </div>
+    <p>Entre com o código de acesso da biblioteca. Só precisa de o escrever uma vez neste aparelho.</p>
+    <div class="f"><label for="login-code">Código de acesso</label><input id="login-code" type="password" autocomplete="current-password" required></div>
+    <div class="f"><label for="login-name">O seu nome</label><input id="login-name" type="text" autocomplete="name" placeholder="Fica registado nos livros que inserir"></div>
+    <p class="err" id="login-err" hidden></p>
+    <button class="btn primary" type="submit" id="login-btn">Entrar</button>
+  </form>
+</div>
+
+<div id="app" hidden>
+<header class="wrap masthead">
+  <div>
+    <p class="eyebrow">Catálogo do Instituto Alberto Magno</p>
+    <h1>Biblioteca IAM</h1>
+  </div>
+  <div class="actions">
+    <button id="btn-export" class="btn ghost" type="button">Descarregar Excel</button>
+    <button id="btn-add" class="btn primary" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+      Registar livros
+    </button>
+  </div>
+</header>
+<div class="wrap"><div class="counts" id="counts"><span>A abrir o catálogo…</span></div></div>
+
+<section class="wrap" aria-label="Pesquisa">
+  <div class="toolbar">
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="Título, autor, ISBN, cota, assunto…" autocomplete="off" aria-label="Pesquisar no catálogo">
+    </div>
+    <select id="f-estado" aria-label="Disponibilidade">
+      <option value="all">Todos</option>
+      <option value="disp">Disponíveis</option>
+      <option value="emp">Emprestados</option>
+      <option value="late">Atrasados</option>
+    </select>
+    <select id="f-sort" aria-label="Ordenar">
+      <option value="recent">Mais recentes</option>
+      <option value="titulo">Título A–Z</option>
+      <option value="autor">Autor A–Z</option>
+      <option value="cota">Cota</option>
+    </select>
+    <div class="seg" role="group" aria-label="Vista">
+      <button type="button" id="v-grid" aria-pressed="true" title="Capas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="6" height="7"/><rect x="14" y="4" width="6" height="7"/><rect x="4" y="14" width="6" height="7"/><rect x="14" y="14" width="6" height="7"/></svg></button>
+      <button type="button" id="v-list" aria-pressed="false" title="Lista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <button type="button" id="v-sheet" aria-pressed="false" title="Folha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="4.5" width="17" height="15" rx="1"/><path d="M3.5 9.5h17M3.5 14.5h17M9 4.5v15M15 4.5v15"/></svg></button>
+    </div>
+  </div>
+  <div class="chips" id="chips"></div>
+</section>
+
+<main class="wrap" id="main">
+  <div class="empty" id="empty" hidden>
+    <h2>As estantes ainda estão vazias</h2>
+    <p>Carregue em <b>Registar livros</b> e leia o código de barras ou fotografe a capa de cada livro que chega. A ficha fica preenchida para confirmar.</p>
+  </div>
+  <div id="list"></div>
+</main>
+<footer class="wrap" style="padding-block:0 32px">
+  <p class="device" id="who"></p>
+</footer>
+</div>
+
+<!-- registar -->
+<div class="overlay" id="ov-add" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="add-title">
+    <div class="sheet-head">
+      <h2 id="add-title">Registar livros</h2>
+      <button class="iconbtn" type="button" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="sheet-body">
+      <div class="add-actions">
+        <button class="drop" type="button" id="btn-scan">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7V5h3M17 5h3v2M20 17v2h-3M7 19H4v-2"/><path d="M7 8v8M10 8v8M12.5 8v8M15 8v8M17 8v8"/></svg>
+          <strong>Ler código de barras</strong>
+          <span>Aponte a câmara à contracapa. Pode ler vários livros seguidos.</span>
+        </button>
+        <label class="drop" id="drop" for="file-in">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          <strong>Fotografar capas</strong>
+          <span id="photo-hint">Para livros sem código de barras. Pode escolher várias fotografias.</span>
+          <input type="file" id="file-in" accept="image/*" multiple hidden>
+        </label>
+      </div>
+      <form class="isbn-row" id="isbn-form" novalidate>
+        <label for="isbn-in">Ou escreva o ISBN</label>
+        <input id="isbn-in" type="text" inputmode="numeric" placeholder="978…" autocomplete="off">
+        <button class="btn" type="submit">Procurar</button>
+      </form>
+      <p class="note" id="ai-note" hidden></p>
+      <div id="drafts" style="display:grid;gap:14px"></div>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn ghost" type="button" id="btn-manual">Registar à mão</button>
+      <button class="btn primary" type="button" id="btn-save-all" disabled>Guardar todos</button>
+    </div>
+  </div>
+</div>
+
+<!-- ficha -->
+<div class="overlay" id="ov-book" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="book-title">
+    <div class="sheet-head">
+      <h2 id="book-title">Ficha</h2>
+      <button class="iconbtn" type="button" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="sheet-body" id="book-body"></div>
+    <div class="sheet-foot" id="book-foot"></div>
+  </div>
+</div>
+
+<!-- câmara -->
+<div class="scan" id="scan" hidden>
+  <video id="scan-video" playsinline muted></video>
+  <div class="frame" id="scan-frame"></div>
+  <div class="bar">
+    <span class="msg" id="scan-msg">Aponte ao código de barras</span>
+    <button class="btn" type="button" id="scan-close">Terminar</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="/vendor/zxing-browser.min.js" defer></script>
+<script src="/vendor/xlsx.mini.min.js" defer></script>
+<script src="/app.js" defer></script>
+</body>
+</html>

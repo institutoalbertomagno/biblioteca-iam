@@ -5,7 +5,7 @@ Catálogo da biblioteca do Instituto Alberto Magno. Site em Cloudflare Pages, se
 ## O que faz
 
 - Consultar o catálogo (capas, lista e folha tipo Excel), filtrar por classe CDU e por disponibilidade.
-- Registar livros lendo o código de barras com a câmara (ISBN procurado no Google Books e no Open Library), escrevendo o ISBN, ou fotografando a capa.
+- Registar livros lendo o código de barras com a câmara (ISBN procurado na PORBASE, no Google Books e no Open Library; a PORBASE traz a classificação CDU), escrevendo o ISBN, ou fotografando a capa.
 - Ler a capa por fotografia e classificar pela CDU com o Claude, se houver chave da API (opcional).
 - Empréstimos e devoluções, com aviso de atrasos.
 - Descarregar o catálogo em Excel (.xlsx).
@@ -39,7 +39,7 @@ functions/api/        servidor (Cloudflare Pages Functions): /api/...
 | `POST /api/capas` (imagem) | Guardar capa no R2 |
 | `POST /api/capas/importar` `{url}` | Copiar capa do Google Books / Open Library |
 | `GET /api/capas/:chave` | Ver capa |
-| `GET /api/isbn/:isbn` | Procurar ISBN nos catálogos públicos |
+| `GET /api/isbn/:isbn` | Procurar ISBN na PORBASE (urn.porbase.org, UNIMARC/MarcXchange), Google Books e Open Library |
 | `POST /api/catalogar` `{imagens, pista}` | Ler capa / classificar com o Claude |
 | `POST /api/importar` `{livros}` | Importar livros (só gestão) |
 

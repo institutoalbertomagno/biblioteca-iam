@@ -138,7 +138,8 @@ const desXml = s => String(s || '')
   .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n)).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
   .replace(/&amp;/g, '&');
 // Limpa marcas de catalogação: carateres de "não ordenar" (<O >mito, ?O ?gene, controlos) e pontuação final ISBD
-const limparMarc = s => desXml(s).replace(/[\u0080-\u009f]/g, '').replace(/[<>]/g, '').replace(/\s+/g, ' ').replace(/\s*[\/:;,=]\s*$/, '').trim();
+// Limpa marcas de catalogação: os carateres de "não ordenar" à volta dos artigos chegam como <O >mito, ?O ?gene ou carateres de controlo
+const limparMarc = s => desXml(s).replace(/[\u0080-\u009f]/g, '').replace(/[<>]/g, '').replace(/(^|[\s(«"'])\?(?=[^\s?])/g, '$1').replace(/\s+/g, ' ').replace(/\s*[\/:;,=]\s*$/, '').trim();
 
 // Lê um registo UNIMARC em MarcXchange (sem DOMParser, que não existe nos Workers)
 function lerMarcxchange(xml) {

@@ -517,7 +517,7 @@ function addDraft({ file = null, isbn = null } = {}) {
     <div class="draft-media">
       <div class="cover">${phHTML({ titulo: isbn ? 'ISBN ' + isbn : file ? '' : 'Sem fotografia' })}</div>
       <div class="thumbs"></div>
-      <label class="btn small ghost" title="Fotografia da capa, da contracapa ou da página de rosto">+ Foto<input type="file" accept="image/*" hidden></label>
+      <label class="btn small ghost foto-btn" title="Tirar uma fotografia à capa do livro"><span>Fotografar capa</span><input type="file" accept="image/*" hidden></label>
     </div>
     <div class="draft-body">
       <p class="status" aria-live="polite"></p>
@@ -563,7 +563,7 @@ function addDraft({ file = null, isbn = null } = {}) {
       }
       d.blob = b; setCoverPreview(d, b);
       if (S.ia && !S.iaOff) { d.status = 'queued'; setStatus(d); pump(); }
-      else { d.status = 'ready'; setStatus(d, 'Não encontrei código de barras nesta fotografia. Fotografe a contracapa (com «+ Foto») ou preencha a ficha à mão.', 'err'); }
+      else { d.status = 'ready'; setStatus(d, 'Não encontrei código de barras nesta fotografia. Tire outra fotografia à contracapa, com o código de barras, ou preencha a ficha à mão.', 'err'); }
     }).catch(() => {
       d.status = 'ready'; d.blob = null;
       art.querySelector('.cover').innerHTML = phHTML({ titulo: 'Imagem ilegível' });
@@ -581,6 +581,14 @@ function setCoverPreview(d, blob) {
   cov.querySelector('img')?.remove();
   const img = document.createElement('img'); img.alt = ''; img.src = URL.createObjectURL(blob);
   cov.append(img);
+  d.el.querySelector('.foto-btn span').textContent = 'Trocar capa';
+}
+// Sem fotografia da capa, a capa provisória mostra o título e o autor da ficha
+function refreshPlaceholder(d) {
+  const cov = d.el.querySelector('.cover');
+  if (cov.querySelector('img')) return;
+  const f = readForm(d.form);
+  cov.innerHTML = phHTML({ titulo: f.titulo || (d.isbn ? 'ISBN ' + d.isbn : 'Sem título'), autores: f.autores });
 }
 function setCoverUrlPreview(d, url) {
   const cov = d.el.querySelector('.cover');
@@ -621,6 +629,7 @@ function fillDraft(d, data, unsure = []) {
   const keep = { localizacao: d.form.elements.localizacao.value, exemplares: d.form.elements.exemplares.value || 1, notas: d.form.elements.notas.value };
   setForm(d.form, { ...data, ...keep }, true);
   markUnsure(d.form, unsure);
+  refreshPlaceholder(d);
 }
 async function readDraft(d) {
   d.status = 'reading';

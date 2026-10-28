@@ -1,0 +1,13 @@
+{
+  "name": "Biblioteca IAM",
+  "short_name": "Biblioteca",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F9FD",
+  "theme_color": "#024E80",
+  "lang": "pt-PT",
+  "icons": [
+    { "src": "/img/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/img/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

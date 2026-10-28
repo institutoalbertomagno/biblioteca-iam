@@ -4,47 +4,61 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Biblioteca IAM</title>
-<meta name="theme-color" content="#45338C">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='5' y='4' width='6' height='24' rx='1' fill='%2345338C'/%3E%3Crect x='13' y='7' width='6' height='21' rx='1' fill='%23745FC7'/%3E%3Crect x='21' y='5' width='6' height='23' rx='1' transform='rotate(8 24 16)' fill='%2345338C'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#024E80">
+<meta name="apple-mobile-web-app-title" content="Biblioteca IAM">
+<link rel="icon" type="image/png" href="/img/favicon.png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Literata:opsz,wght@7..72,500;7..72,600&family=Public+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Poppins:wght@300;400;500;600;700&display=swap">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
 <!-- entrada -->
 <div class="login" id="login" hidden>
-  <form id="login-form" novalidate>
-    <div>
-      <p class="eyebrow">Instituto Alberto Magno</p>
-      <h1>Biblioteca IAM</h1>
-    </div>
-    <p>Entre com o código de acesso da biblioteca. Só precisa de o escrever uma vez neste aparelho.</p>
-    <div class="f"><label for="login-code">Código de acesso</label><input id="login-code" type="password" autocomplete="current-password" required></div>
-    <div class="f"><label for="login-name">O seu nome</label><input id="login-name" type="text" autocomplete="name" placeholder="Fica registado nos livros que inserir"></div>
-    <p class="err" id="login-err" hidden></p>
-    <button class="btn primary" type="submit" id="login-btn">Entrar</button>
-  </form>
+  <div class="center">
+    <form id="login-form" novalidate>
+      <img class="logo" src="/img/logo-iam.png" alt="Instituto Alberto Magno" width="720" height="184">
+      <h1>Biblioteca</h1>
+      <p>Entre com o código de acesso da biblioteca. Só precisa de o escrever uma vez neste aparelho.</p>
+      <div class="f"><label for="login-code">Código de acesso</label><input id="login-code" type="password" autocomplete="current-password" required></div>
+      <div class="f"><label for="login-name">O seu nome</label><input id="login-name" type="text" autocomplete="name" placeholder="Fica registado nos livros que inserir"></div>
+      <p class="err" id="login-err" hidden></p>
+      <button class="btn primary" type="submit" id="login-btn">Entrar</button>
+    </form>
+  </div>
+  <div class="band"></div>
 </div>
 
 <div id="app" hidden>
-<header class="wrap masthead">
-  <div>
-    <p class="eyebrow">Catálogo do Instituto Alberto Magno</p>
-    <h1>Biblioteca IAM</h1>
-  </div>
-  <div class="actions">
-    <button id="btn-export" class="btn ghost" type="button">Descarregar Excel</button>
-    <button id="btn-add" class="btn primary" type="button">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
-      Registar livros
-    </button>
+<header class="topbar">
+  <div class="wrap">
+    <img class="logo" src="/img/logo-iam.png" alt="Instituto Alberto Magno" width="720" height="184">
+    <div class="actions">
+      <button id="btn-export" class="btn ghost" type="button" title="Descarregar o catálogo em Excel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+        <span>Excel</span>
+      </button>
+      <button id="btn-add" class="btn primary" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        <span>Registar <span class="label-long">livros</span></span>
+      </button>
+    </div>
   </div>
 </header>
-<div class="wrap"><div class="counts" id="counts"><span>A abrir o catálogo…</span></div></div>
 
-<section class="wrap" aria-label="Pesquisa">
+<section class="hero">
+  <div class="wrap">
+    <h1>Biblioteca</h1>
+    <p class="sub">Catálogo do Instituto Alberto Magno</p>
+    <div class="counts" id="counts"><span>A abrir o catálogo…</span></div>
+  </div>
+</section>
+
+<section class="tools" aria-label="Pesquisa">
+  <div class="wrap">
   <div class="toolbar">
     <div class="search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -69,17 +83,24 @@
     </div>
   </div>
   <div class="chips" id="chips"></div>
+  </div>
 </section>
 
 <main class="wrap" id="main">
   <div class="empty" id="empty" hidden>
-    <h2>As estantes ainda estão vazias</h2>
+    <h2>As estantes estão vazias</h2>
     <p>Carregue em <b>Registar livros</b> e leia o código de barras ou fotografe a capa de cada livro que chega. A ficha fica preenchida para confirmar.</p>
   </div>
   <div id="list"></div>
 </main>
-<footer class="wrap" style="padding-block:0 32px">
-  <p class="device" id="who"></p>
+<footer class="footer">
+  <div class="wrap">
+    <div>
+      <img class="logo" src="/img/logo-iam.png" alt="Instituto Alberto Magno" width="720" height="184">
+      <address><b>Instituto Alberto Magno</b><br>R. da Lapa 100, 1200-796 Lisboa<br>geral@institutoalbertomagno.com</address>
+    </div>
+    <p class="device" id="who"></p>
+  </div>
 </footer>
 </div>
 

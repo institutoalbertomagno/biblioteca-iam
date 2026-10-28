@@ -400,9 +400,38 @@ function showAiNote() {
     $('#photo-hint').textContent = 'Contracapa com código de barras, ou a capa de livros sem código. Pode escolher várias.';
   }
 }
+// Se o servidor não encontrar, o próprio telemóvel/computador pergunta ao Google Books e ao Open Library
+// (estes catálogos às vezes recusam pedidos vindos do servidor, mas aceitam os do navegador).
+async function lookupIsbnNavegador(isbn) {
+  const tempo = () => (AbortSignal.timeout ? AbortSignal.timeout(9000) : undefined);
+  const [gb, ol] = await Promise.all([
+    fetch('https://www.googleapis.com/books/v1/volumes?q=isbn:' + isbn, { signal: tempo() }).then(r => r.ok ? r.json() : null).catch(() => null),
+    fetch('https://openlibrary.org/api/books?bibkeys=ISBN:' + isbn + '&format=json&jscmd=data', { signal: tempo() }).then(r => r.ok ? r.json() : null).catch(() => null)
+  ]);
+  const v = gb?.items?.[0]?.volumeInfo, o = ol?.['ISBN:' + isbn];
+  if (!v && !o) return null;
+  const IDI = { pt: 'Português', en: 'Inglês', fr: 'Francês', es: 'Espanhol', it: 'Italiano', de: 'Alemão', la: 'Latim' };
+  const d = {
+    titulo: v?.title || o?.title || '', subtitulo: v?.subtitle || o?.subtitle || '',
+    autores: v?.authors || (o?.authors || []).map(a => a.name).filter(Boolean),
+    editora: v?.publisher || o?.publishers?.[0]?.name || '',
+    ano: parseInt(String(v?.publishedDate || o?.publish_date || '').match(/\d{4}/)?.[0] || '', 10) || null,
+    paginas: v?.pageCount || o?.number_of_pages || null,
+    idioma: IDI[String(v?.language || '').slice(0, 2)] || '',
+    sinopse: String(v?.description || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 1500),
+    categorias: v?.categories || [], assuntosOL: (o?.subjects || []).slice(0, 10).map(x => x.name)
+  };
+  let capa = v?.imageLinks?.thumbnail || v?.imageLinks?.smallThumbnail || o?.cover?.large || o?.cover?.medium || null;
+  if (capa) capa = capa.replace(/^http:/, 'https:').replace('&edge=curl', '').replace('zoom=1', 'zoom=2');
+  return { encontrado: true, dados: d, capaUrl: capa, fontes: [v && 'Google Books', o && 'Open Library'].filter(Boolean) };
+}
 async function lookupIsbn(isbn) {
-  const r = await api('GET', 'isbn/' + isbn);
-  if (!r.encontrado) return null;
+  let r = await api('GET', 'isbn/' + isbn);
+  if (!r.encontrado) {
+    const nav = await lookupIsbnNavegador(isbn).catch(() => null);
+    if (nav) r = nav;
+  }
+  if (!r.encontrado) { lookupIsbn.ultimoDiag = r.diagnostico || {}; return null; }
   const d = r.dados || {};
   return {
     dados: {
@@ -607,7 +636,11 @@ async function readDraft(d) {
         fillDraft(d, found.dados);
         if (found.capaUrl && !d.blob) { d.capaUrl = found.capaUrl; setCoverUrlPreview(d, found.capaUrl); }
         msgs.push('Encontrado em ' + found.fontes.join(', ') + (found.dados.cdu ? ', com a CDU da PORBASE' : ''));
-      } else msgs.push('O ISBN não está nos catálogos públicos');
+      } else {
+        const dg = lookupIsbn.ultimoDiag || {};
+        const falhas = Object.entries(dg).filter(([, v]) => v !== 'sem registo').map(([k, v]) => `${k}: ${v}`);
+        msgs.push('O ISBN ' + isbn + ' não foi encontrado nos catálogos' + (falhas.length ? ' (' + falhas.join('; ') + ')' : ''));
+      }
     }
     // 2) Claude: lê a fotografia e/ou classifica (CDU, assuntos e sinopse em português)
     if (S.ia && !S.iaOff && (d.blob || found)) {

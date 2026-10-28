@@ -102,6 +102,14 @@ function limpar(d, parcial = false) {
 }
 
 /* ---------- catálogos públicos por ISBN ---------- */
+const UA = { 'User-Agent': 'BibliotecaIAM/1.0 (+https://biblioteca-iam.pages.dev; geral@institutoalbertomagno.com)', 'Accept-Language': 'pt-PT,pt;q=0.9' };
+async function buscar(url, aceitar, diag, nome) {
+  try {
+    const r = await fetch(url, { headers: { ...UA, Accept: aceitar }, signal: AbortSignal.timeout(9000), cf: { cacheTtl: 86400 } });
+    if (!r.ok) { diag[nome] = 'erro ' + r.status; return null; }
+    return r;
+  } catch (e) { diag[nome] = e?.name === 'TimeoutError' ? 'sem resposta' : 'falhou a ligação'; return null; }
+}
 const IDIOMAS = {
   por: 'Português', pt: 'Português', eng: 'Inglês', en: 'Inglês', fre: 'Francês', fra: 'Francês', fr: 'Francês',
   spa: 'Espanhol', es: 'Espanhol', ita: 'Italiano', it: 'Italiano', ger: 'Alemão', deu: 'Alemão', de: 'Alemão',
@@ -169,13 +177,14 @@ function porbaseParaDados(c) {
   d.sinopse = um('330', 'a');
   return d;
 }
-async function procurarPorbase(isbn) {
+async function procurarPorbase(isbn, diag) {
   const tentar = async id => {
+    if (!id) return null;
     try {
-      const r = await fetch(`https://urn.porbase.org/isbn/unimarc/marcxchange?id=${id}`, { cf: { cacheTtl: 86400 } });
-      if (!r.ok) return null;
+      const r = await buscar(`https://urn.porbase.org/isbn/unimarc/marcxchange?id=${id}`, 'application/xml,text/xml,*/*', diag, 'PORBASE');
+      if (!r) return null;
       const xml = await r.text();
-      if (!/<(?:\w+:)?record\b/.test(xml)) return null; // não encontrado: vem 200 com um <error>
+      if (!/<(?:\w+:)?record\b/.test(xml)) { diag.PORBASE ||= 'sem registo'; return null; } // não encontrado: vem 200 com um <error>
       const regs = lerMarcxchange(xml).filter(c => c['200']);
       if (!regs.length) return null;
       // vários registos (várias bibliotecas): prefere o que tem CDU, depois o mais completo
@@ -185,19 +194,24 @@ async function procurarPorbase(isbn) {
         const outro = regs.find(c => c['675']);
         if (outro) { const o = porbaseParaDados(outro); d.cdu = o.cdu; d.classe = o.classe; }
       }
+      delete diag.PORBASE;
       return d;
-    } catch { return null; }
+    } catch (e) { diag.PORBASE = 'resposta ilegível'; return null; }
   };
   return (await tentar(isbn)) || (isbn.length === 13 ? await tentar(isbn13para10(isbn)) : await tentar(isbn10para13(isbn)));
 }
 
 async function procurarIsbn(isbn, env) {
-  const out = { encontrado: false, dados: {}, capaUrl: null, fontes: [] };
+  const diag = {};
+  const out = { encontrado: false, dados: {}, capaUrl: null, fontes: [], diagnostico: diag };
+  const json = r => r ? r.json().catch(() => null) : null;
   const [pb, gb, ol] = await Promise.all([
-    procurarPorbase(isbn),
-    fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}${env.GOOGLE_BOOKS_KEY ? '&key=' + env.GOOGLE_BOOKS_KEY : ''}`, { cf: { cacheTtl: 86400 } }).then(r => r.ok ? r.json() : null).catch(() => null),
-    fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`, { cf: { cacheTtl: 86400 } }).then(r => r.ok ? r.json() : null).catch(() => null)
+    procurarPorbase(isbn, diag),
+    buscar(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}${env.GOOGLE_BOOKS_KEY ? '&key=' + env.GOOGLE_BOOKS_KEY : ''}`, 'application/json', diag, 'Google Books').then(json),
+    buscar(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`, 'application/json', diag, 'Open Library').then(json)
   ]);
+  if (gb && !gb.items?.length) diag['Google Books'] ||= 'sem registo';
+  if (ol && !ol[`ISBN:${isbn}`]) diag['Open Library'] ||= 'sem registo';
   const d = out.dados;
   const juntar = (k, v) => { if ((d[k] === undefined || d[k] === null || d[k] === '' || (Array.isArray(d[k]) && !d[k].length)) && v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && !v.length)) d[k] = v; };
 

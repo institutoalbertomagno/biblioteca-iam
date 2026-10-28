@@ -393,11 +393,11 @@ function showAiNote() {
   const n = $('#ai-note');
   if (!S.ia || S.iaOff) {
     n.hidden = false;
-    n.textContent = 'A leitura automática das capas por fotografia não está ligada. O código de barras e o ISBN continuam a preencher a ficha, com a classe CDU quando o livro está na PORBASE; as fotografias ficam como capa.';
-    $('#photo-hint').textContent = 'A fotografia fica como capa; a ficha preenche-se à mão.';
+    n.textContent = 'A ficha preenche-se pelo código de barras (ao vivo ou numa fotografia da contracapa) ou pelo ISBN, com a classe CDU quando o livro está na PORBASE. Fotografias da capa, sem código de barras, ficam só como capa.';
+    $('#photo-hint').textContent = 'Fotografe a contracapa, com o código de barras: a ficha preenche-se sozinha.';
   } else {
     n.hidden = true;
-    $('#photo-hint').textContent = 'Para livros sem código de barras. Pode escolher várias fotografias.';
+    $('#photo-hint').textContent = 'Contracapa com código de barras, ou a capa de livros sem código. Pode escolher várias.';
   }
 }
 async function lookupIsbn(isbn) {
@@ -428,6 +428,49 @@ function fromAi(r) {
 function aiErr(e) {
   if (e?.codigo === 'sem_ia') { S.iaOff = true; showAiNote(); }
   return errMsg(e);
+}
+
+/* ---------- código de barras numa fotografia ---------- */
+async function barcodeFromImage(file) {
+  let bmp;
+  try { bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+  catch { try { bmp = await createImageBitmap(file); } catch { return null; } }
+  if ('BarcodeDetector' in window) {
+    try {
+      const r = await new BarcodeDetector({ formats: ['ean_13', 'upc_a', 'ean_8'] }).detect(bmp);
+      if (r[0]?.rawValue) return r[0].rawValue;
+    } catch {}
+  }
+  if (!window.ZXingBrowser) return null;
+  const reader = new ZXingBrowser.BrowserMultiFormatOneDReader(new Map([[3, true]])); // 3 = TRY_HARDER
+  for (const max of [1600, 1000, 2400]) {
+    for (const rot of [0, 90]) {
+      const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+      const w = Math.round(bmp.width * k), h = Math.round(bmp.height * k);
+      const c = document.createElement('canvas');
+      c.width = rot ? h : w; c.height = rot ? w : h;
+      const g = c.getContext('2d');
+      if (rot) { g.translate(h, 0); g.rotate(Math.PI / 2); }
+      g.drawImage(bmp, 0, 0, w, h);
+      try { const res = reader.decodeFromCanvas(c); if (res) return res.getText(); } catch {}
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+  return null;
+}
+const isIsbnCode = code => (/^97[89]\d{10}$/.test(code) || code.length === 10) && isbnState(code) === 'ok';
+// Se a fotografia tiver o código de barras de um ISBN, a ficha passa a ser preenchida por ele
+async function tryPhotoBarcode(d, file) {
+  if (d.isbnDone) return false;
+  d.status = 'reading'; d.stage = 'A procurar o código de barras na fotografia…'; setStatus(d);
+  const code = isbnClean(await barcodeFromImage(file).catch(() => null) || '');
+  if (!isIsbnCode(code)) return false;
+  if (drafts.some(x => x !== d && x.isbn === code)) { toast('Esse livro já está na lista para registar.'); }
+  const dup = S.books.find(b => isbnClean(b.isbn) === code);
+  if (dup) toast(`Atenção: «${dup.titulo}» já está no catálogo.`);
+  d.isbn = code;
+  d.form.elements.isbn.value = code; checkIsbn(d.form);
+  return true;
 }
 
 /* ---------- drafts ---------- */
@@ -468,20 +511,30 @@ function addDraft({ file = null, isbn = null } = {}) {
   const more = art.querySelector('input[type=file]');
   more.onchange = async () => {
     const files = [...more.files]; more.value = '';
-    let added = false;
+    let added = false, achou = false;
     for (const f of files) {
       try {
+        if (!achou && await tryPhotoBarcode(d, f)) { achou = true; d.isbnDone = false; addThumb(d, await shrink(f, 400)); continue; }
         const b = await shrink(f);
         if (!d.blob) { d.blob = b; setCoverPreview(d, b); } else { d.extra.push(b); addThumb(d, b); }
         added = true;
       } catch { toast('Não foi possível abrir essa imagem (use JPG ou PNG).'); }
     }
-    if (added && S.ia && !S.iaOff) { d.status = 'queued'; setStatus(d); pump(); }
+    if (achou || (added && S.ia && !S.iaOff)) { d.status = 'queued'; setStatus(d); pump(); }
+    else if (d.status === 'reading') { d.status = 'ready'; setStatus(d, 'Não encontrei código de barras nessa fotografia.', 'err'); }
   };
   if (file) {
-    shrink(file).then(b => {
+    shrink(file).then(async b => {
+      if (await tryPhotoBarcode(d, file)) {
+        // era a contracapa: a capa vem do catálogo; a foto fica como miniatura
+        addThumb(d, b);
+        art.querySelector('.cover').innerHTML = phHTML({ titulo: 'ISBN ' + d.isbn });
+        d.status = 'queued'; setStatus(d); pump();
+        return;
+      }
       d.blob = b; setCoverPreview(d, b);
-      if (S.ia && !S.iaOff) pump(); else { d.status = 'ready'; setStatus(d, 'Preencha a ficha. Só o título é obrigatório.'); }
+      if (S.ia && !S.iaOff) { d.status = 'queued'; setStatus(d); pump(); }
+      else { d.status = 'ready'; setStatus(d, 'Não encontrei código de barras nesta fotografia. Fotografe a contracapa (com «+ Foto») ou preencha a ficha à mão.', 'err'); }
     }).catch(() => {
       d.status = 'ready'; d.blob = null;
       art.querySelector('.cover').innerHTML = phHTML({ titulo: 'Imagem ilegível' });
@@ -699,12 +752,12 @@ async function openScanner() {
       };
       loop();
     } else if (window.ZXingBrowser) {
-      const reader = new ZXingBrowser.BrowserMultiFormatOneDReader();
+      const reader = new ZXingBrowser.BrowserMultiFormatOneDReader(new Map([[3, true]])); // 3 = TRY_HARDER
       scan.controls = await reader.decodeFromConstraints({ video: { facingMode: 'environment' } }, video, res => { if (res) onCode(res.getText()); });
     } else throw new Error('sem leitor');
   } catch (e) {
     closeScanner();
-    toast(e?.name === 'NotAllowedError' ? 'O navegador não deu acesso à câmara. Permita a câmara para este site e tente de novo.' : 'Não foi possível abrir a câmara. Escreva o ISBN à mão.');
+    toast(e?.name === 'NotAllowedError' ? 'O navegador não deu acesso à câmara. Use «Fotografar» e tire uma fotografia à contracapa, ou permita a câmara para este site.' : 'Não foi possível abrir a câmara aqui. Use «Fotografar» e tire uma fotografia à contracapa: o código de barras é lido na fotografia.');
   }
 }
 function onCode(raw) {

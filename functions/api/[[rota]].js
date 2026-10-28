@@ -19,6 +19,9 @@ const CDU = {
   '8': 'Língua e Literatura', '9': 'História, Geografia e Biografia'
 };
 const SESSAO_DIAS = 180;
+// Enquanto true, só o código de gestão entra; a equipa vê um aviso de que o site está em preparação.
+const SO_GESTAO = true;
+const MSG_FECHADO = 'A biblioteca ainda está em preparação. Avisamos quando estiver pronta.';
 const CAPA_HOSTS = ['books.google.com', 'books.googleusercontent.com', 'covers.openlibrary.org', 'archive.org'];
 
 /* ---------- utilitários ---------- */
@@ -308,11 +311,13 @@ export async function onRequest(ctx) {
       if (env.CODIGO_GESTAO && igual(String(codigo || ''), env.CODIGO_GESTAO)) papel = 'gestao';
       else if (igual(String(codigo || ''), env.CODIGO_EQUIPA)) papel = 'equipa';
       if (!papel) { await new Promise(r => setTimeout(r, 800)); return erro(401, 'codigo_errado', 'Código errado.'); }
+      if (SO_GESTAO && papel !== 'gestao') return erro(403, 'fechado', MSG_FECHADO);
       return json({ papel }, 200, { 'set-cookie': await novaSessao(env, papel) });
     }
     if (rota === 'sair' && metodo === 'POST') return json({ ok: true }, 200, { 'set-cookie': 'biblioteca=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax' });
 
-    const sessao = await lerSessao(req, env);
+    let sessao = await lerSessao(req, env);
+    if (sessao && SO_GESTAO && sessao.papel !== 'gestao') sessao = null;
     if (!sessao) return erro(401, 'sem_sessao', 'Entre com o código de acesso.');
     const gestao = sessao.papel === 'gestao';
 

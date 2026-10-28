@@ -639,7 +639,7 @@ async function readDraft(d) {
       } else {
         const dg = lookupIsbn.ultimoDiag || {};
         const falhas = Object.entries(dg).filter(([, v]) => v !== 'sem registo').map(([k, v]) => `${k}: ${v}`);
-        msgs.push('O ISBN ' + isbn + ' não foi encontrado nos catálogos' + (falhas.length ? ' (' + falhas.join('; ') + ')' : ''));
+        msgs.push('O livro com o ISBN ' + isbn + ' não está nos catálogos públicos' + (S.papel === 'gestao' && falhas.length ? ' (' + falhas.join('; ') + ')' : ''));
       }
     }
     // 2) Claude: lê a fotografia e/ou classifica (CDU, assuntos e sinopse em português)
@@ -682,7 +682,7 @@ async function readDraft(d) {
     }
     d.status = 'ready';
     const unsureN = d.form.querySelectorAll('.f.unsure').length;
-    if (!found && !d.blob && !(S.ia && !S.iaOff)) setStatus(d, msgs.join('; ') + '. Preencha o resto da ficha.', 'err');
+    if (!found && !d.blob && !(S.ia && !S.iaOff)) setStatus(d, msgs.join('; ') + '. Preencha à mão o título, o autor e a editora; o ISBN já está.', 'err');
     else {
       const semClasse = !d.form.elements.classe.value ? ' Falta escolher a classe CDU.' : '';
       setStatus(d, (msgs.join('; ') || 'Ficha preenchida') + (unsureN ? '. Confirme os campos assinalados.' : '. Reveja e guarde.') + semClasse, found || d.blob ? 'ok' : '');

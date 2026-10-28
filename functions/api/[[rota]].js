@@ -20,7 +20,7 @@ const CDU = {
 };
 const SESSAO_DIAS = 180;
 // Enquanto true, só o código de gestão entra; a equipa vê um aviso de que o site está em preparação.
-const SO_GESTAO = true;
+const SO_GESTAO = false;
 const MSG_FECHADO = 'A biblioteca ainda está em preparação. Avisamos quando estiver pronta.';
 const CAPA_HOSTS = ['books.google.com', 'books.googleusercontent.com', 'covers.openlibrary.org', 'archive.org'];
 
